@@ -1,0 +1,37 @@
+name: Daily Stock Prediction
+
+on:
+  schedule:
+    # 台灣時間 16:30 (股市收盤與結算後) 執行 = UTC 08:30 (週一至週五)
+    - cron: '30 8 * * 1-5'
+  workflow_dispatch: # 支援在 GitHub 頁面手動點選按鈕觸發執行
+
+jobs:
+  predict_and_commit:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Run Model Prediction
+      run: |
+        python use_model.py
+
+    - name: Commit and Push Updated Prediction Data
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add result_data/
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Auto update daily prediction [$(date +'%Y-%m-%d')]" && git push)

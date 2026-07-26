@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lymetix AI - 智慧股市決策終端</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: Noto Sans TC & Outfit (適用於美觀的數字與英文) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Noto Sans TC', 'sans-serif'],
+                        mono: ['Outfit', 'Noto Sans TC', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            dark: '#0B0F19',
+                            card: '#161F30',
+                            border: '#23334D',
+                            accent: '#3B82F6',
+                            green: '#10B981',
+                            red: '#EF4444',
+                            yellow: '#F59E0B'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            background-color: #0B0F19;
+            color: #E2E8F0;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(29, 78, 216, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(124, 58, 237, 0.12) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .glass {
+            background: rgba(22, 31, 48, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .glass-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-hover:hover {
+            transform: translateY(-4px);
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 12px 40px 0 rgba(59, 130, 246, 0.15);
+        }
+
+        /* 霓虹發光文字與邊框 */
+        .neon-text-blue {
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+        .neon-text-green {
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.5), 0 0 20px rgba(16, 185, 129, 0.3);
+        }
+        .neon-text-red {
+            text-shadow: 0 0 10px rgba(239, 68, 68, 0.5), 0 0 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .neon-border-pulse {
+            animation: borderPulse 2s infinite alternate;
+        }
+        @keyframes borderPulse {
+            0% { border-color: rgba(59, 130, 246, 0.2); box-shadow: 0 0 8px rgba(59, 130, 246, 0.1); }
+            100% { border-color: rgba(59, 130, 246, 0.6); box-shadow: 0 0 16px rgba(59, 130, 246, 0.3); }
+        }
+
+        /* 微動畫 */
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.05); }
+        }
+        .pulse-slow {
+            animation: pulse-slow 4s infinite ease-in-out;
+        }
+
+        /* 自訂拉條 / 進度條與卷軸樣式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0B0F19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #23334D;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3B82F6;
+        }
+
+        /* 脈衝點點 */
+        .ping-green {
+            position: relative;
+        }
+        .ping-green::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: #10B981;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        @keyframes ping {
+            75%, 100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-16 font-sans">
+
+    <!-- 頂部導覽列 -->
+    <header class="sticky top-0 z-40 w-full border-b border-white/5 bg-brand-dark/80 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <img src="/static/images/logo.png" alt="Lymetix Logo" 
+                     class="w-10 h-10 rounded-full border border-blue-500/30 hover:scale-105 transition-transform duration-300">
+                <div>
+                    <h1 class="text-2xl font-black font-mono tracking-wider bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400 bg-clip-text text-transparent">
+                        LYMETIX AI
+                    </h1>
+                    <p class="text-[10px] text-gray-400 font-mono tracking-widest uppercase">Stock Predictive Terminal</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 ping-green"></span>
+                    系統就緒 (LSTM V2)
+                </span>
+                <a href="https://line.me/R/ti/p/@422bmzsl" target="_blank"
+                   class="hidden sm:inline-flex items-center px-4 py-2 rounded-full text-xs font-bold bg-[#06C755] hover:bg-[#05b34c] text-white transition duration-300 shadow-md shadow-green-950/20">
+                    加入 LINE 官方帳號
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-8">
+        
+        <!-- 第一區塊：明日預測主面板 -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- 左側/中間：明日預測核心展示 -->
+            <div class="lg:col-span-2 glass rounded-3xl p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden neon-border-pulse">
+                <!-- 背景微光效果 -->
+                <div class="absolute -right-24 -top-24 w-72 h-72 rounded-full bg-blue-600/10 blur-3xl pulse-slow"></div>
+                <div class="absolute -left-24 -bottom-24 w-72 h-72 rounded-full bg-indigo-600/10 blur-3xl pulse-slow"></div>
+                
+                <div class="relative z-10">
+                    <!-- 標題與更新時間 -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-6">
+                        <div>
+                            <span class="text-xs font-bold text-blue-400 tracking-widest uppercase font-mono">Real-Time Forecast</span>
+                            <h2 class="text-2xl font-extrabold text-white mt-1">台積電 (2330.TW) 明日走勢預測</h2>
+                        </div>
+                        <div class="text-left sm:text-right font-mono">
+                            <p class="text-xs text-gray-400">數據基準日期：<span id="data-date" class="text-gray-200">--</span></p>
+                            <p class="text-xs text-gray-400">預測發布日期：<span id="predict-date" class="text-gray-200">--</span></p>
+                        </div>
+                    </div>
+
+                    <!-- 預測核心展示區 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 my-8 items-center">
+                        
+                        <!-- 預測方向大圖 -->
+                        <div class="flex flex-col items-center justify-center p-6 bg-white/5 rounded-2xl border border-white/5">
+                            <span class="text-sm text-gray-400 font-medium">明日AI預測信號</span>
+                            
+                            <!-- 漲/跌/觀望動態顯示 -->
+                            <div id="pred-badge-container" class="mt-4 flex flex-col items-center">
+                                <div id="pred-icon" class="text-7xl mb-2">⚖️</div>
+                                <span id="pred-text" class="text-5xl font-black tracking-wider">載入中</span>
+                                <span id="pred-subtext" class="text-xs text-gray-400 mt-2 font-mono">正在分析特徵矩陣...</span>
+                            </div>
+
+                            <div class="mt-6 w-full border-t border-white/5 pt-4 text-center">
+                                <p class="text-xs text-gray-400">最新收盤價：<span class="text-lg font-bold font-mono text-white" id="close-price">--</span> NT$</p>
+                            </div>
+                        </div>
+
+                        <!-- 預測置信度 & 分佈 -->
+                        <div class="flex flex-col space-y-6">
+                            <!-- 信心圓形進度條 -->
+                            <div class="flex items-center space-x-6">
+                                <div class="relative w-24 h-24 flex items-center justify-center">
+                                    <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                        <path class="text-gray-800" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                        <path id="confidence-circle" class="text-blue-500 transition-all duration-1000 ease-out" stroke-dasharray="0, 100" stroke-width="3" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    </svg>
+                                    <div class="absolute flex flex-col items-center">
+                                        <span id="confidence-val" class="text-2xl font-black font-mono text-white">0%</span>
+                                        <span class="text-[9px] text-gray-400 uppercase font-mono">Confidence</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-white text-base">AI 置信度評估</h4>
+                                    <p id="confidence-desc" class="text-xs text-gray-400 mt-1">模型針對明日走勢的判斷把握度。</p>
+                                    <span id="confidence-badge" class="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono"></span>
+                                </div>
+                            </div>
+
+                            <!-- 機率分佈進度條 -->
+                            <div class="space-y-3 bg-white/5 p-4 rounded-xl border border-white/5">
+                                <h5 class="text-xs font-bold text-gray-300 font-mono tracking-widest uppercase">Probability Matrix</h5>
+                                
+                                <!-- 漲 -->
+                                <div class="space-y-1">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-gray-400 flex items-center">📈 看漲 (Up)</span>
+                                        <span id="prob-up" class="font-bold font-mono text-emerald-400">0.0%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-950 h-2 rounded-full overflow-hidden">
+                                        <div id="bar-up" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <!-- 觀望 -->
+                                <div class="space-y-1">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-gray-400 flex items-center">⚖️ 觀望 (Neutral)</span>
+                                        <span id="prob-neutral" class="font-bold font-mono text-blue-400">0.0%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-950 h-2 rounded-full overflow-hidden">
+                                        <div id="bar-neutral" class="bg-gradient-to-r from-blue-500 to-indigo-400 h-full rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <!-- 跌 -->
+                                <div class="space-y-1">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-gray-400 flex items-center">📉 看跌 (Down)</span>
+                                        <span id="prob-down" class="font-bold font-mono text-red-400">0.0%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-950 h-2 rounded-full overflow-hidden">
+                                        <div id="bar-down" class="bg-gradient-to-r from-red-500 to-pink-500 h-full rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- 明日走勢預測折線圖 -->
+                <div class="relative z-10 my-6 p-4 bg-white/5 rounded-2xl border border-white/5 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-gray-300 font-mono tracking-widest uppercase">Price Trend & AI Forecast</span>
+                        <span class="text-[10px] text-gray-400 flex items-center gap-1.5 font-mono">
+                            <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span> 歷史價格 (已知)
+                            <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500"></span> AI預測區間 (明天)
+                        </span>
+                    </div>
+                    <div class="relative h-64 w-full">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 即時更新按鈕與快取提示 -->
+                <div class="relative z-10 border-t border-white/5 pt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center space-x-2">
+                        <span id="cache-dot" class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                        <span id="cache-text" class="text-xs text-gray-400 font-mono">載入中...</span>
+                    </div>
+                    <button id="btn-run-prediction" 
+                            class="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg shadow-blue-500/20 transform hover:-translate-y-0.5 active:translate-y-0 transition duration-200 flex items-center justify-center space-x-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"></path>
+                        </svg>
+                        <span>即時運行 AI 預測</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 右側：技術原理與Line帳號卡片 -->
+            <div class="glass rounded-3xl p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden">
+                <div class="relative z-10 space-y-6">
+                    <div>
+                        <span class="text-xs font-bold text-indigo-400 tracking-widest uppercase font-mono">Core Engineering</span>
+                        <h3 class="text-xl font-extrabold text-white mt-1">Lymetix 技術運作原理</h3>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-start space-x-3">
+                            <div class="mt-1 p-1 bg-blue-500/10 rounded-lg text-blue-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-bold text-white">多源市場聯動數據</h4>
+                                <p class="text-xs text-gray-400 mt-1">整合台積電（2330.TW）、費城半導體指數（SOX）、台股大盤、USD/TWD 匯率及 VIX 恐慌指數等多維度特徵。</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start space-x-3">
+                            <div class="mt-1 p-1 bg-indigo-500/10 rounded-lg text-indigo-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-bold text-white">LSTM + GRU 雙核心模型</h4>
+                                <p class="text-xs text-gray-400 mt-1">採用多層循環神經網路，具備強大的時間序列捕捉能力。透過自定義注意力機制優化關鍵市場特徵權重。</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start space-x-3">
+                            <div class="mt-1 p-1 bg-emerald-500/10 rounded-lg text-emerald-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-bold text-white">模型高頻特徵優化</h4>
+                                <p class="text-xs text-gray-400 mt-1">針對台股開收盤盤口特徵進行最佳化，增強極端行情下的預測魯棒性。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Line 官方推廣 -->
+                <div class="mt-8 p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-center space-y-4">
+                    <div>
+                        <h4 class="text-sm font-extrabold text-white">掌握每日第一手股市先機！</h4>
+                        <p class="text-xs text-gray-400 mt-1">立即加入我們的官方 Line 帳號，每日自動派送最新預測報告。</p>
+                    </div>
+                    <a href="https://line.me/R/ti/p/@422bmzsl" target="_blank"
+                       class="inline-flex items-center justify-center w-full py-3 rounded-xl font-extrabold text-sm bg-[#06C755] hover:bg-[#05b34c] text-white transition duration-300 transform hover:scale-[1.02] shadow-md shadow-green-950/20 gap-2">
+                        <span>立即加入官方 LINE</span>
+                    </a>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- 頁腳 -->
+    <footer class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 border-t border-white/5 pt-8 text-center text-xs text-gray-500 space-y-2">
+        <p>&copy; 2026 Lymetix AI Stock predictive engine. Developed by Enkai Chang.</p>
+        <p class="text-[10px] text-gray-600 leading-relaxed max-w-2xl mx-auto">
+            免責聲明：本儀表板所提供之所有預測與量化回測結果，皆為基於歷史數據之統計模型推理，僅供學術研究與參考之用，不構成任何具體投資建議。股市投資具有高風險，請投資人審慎評估並自負盈虧。
+        </p>
+    </footer>
+
+    <!-- 毛玻璃霓虹加載遮罩 (Neo-Glassmorphic Loader Overlay) -->
+    <div id="loader-overlay" class="fixed inset-0 z-50 bg-brand-dark/85 backdrop-blur-md flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="glass rounded-3xl p-8 max-w-md w-full mx-4 border border-blue-500/20 text-center space-y-6 shadow-2xl shadow-blue-500/10">
+            <!-- 霓虹旋轉 Spinner -->
+            <div class="relative w-20 h-20 mx-auto">
+                <div class="absolute inset-0 rounded-full border-4 border-white/5"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-t-blue-500 border-r-indigo-500 animate-spin"></div>
+                <!-- 中心小圓點 -->
+                <div class="absolute inset-6 rounded-full bg-brand-dark flex items-center justify-center">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500 ping-green"></span>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <h4 class="text-lg font-extrabold text-white">AI 時間序列預測中</h4>
+                <p class="text-xs text-gray-400">正在驅動深度神經網路進行即時運算，請稍候...</p>
+            </div>
+
+            <!-- 後台滾動日誌 (模擬科學感進度) -->
+            <div class="bg-gray-950 rounded-xl p-4 text-left border border-white/5 h-24 overflow-y-hidden font-mono text-[10px] text-emerald-400 space-y-1.5 shadow-inner">
+                <div id="log-text-container" class="space-y-1 transition-all duration-300">
+                    <!-- 滾動日誌將由 JS 插入 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 前端主要邏輯指令碼 -->
+    <script>
+        // 登入狀態下，載入所有數據
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchPrediction();
+            
+            // 綁定「強制重新預測」按鈕
+            document.getElementById('btn-run-prediction').addEventListener('click', triggerLivePrediction);
+        });
+
+        // ==============================================================================
+        // API 呼叫方法
+        // ==============================================================================
+
+        // 1. 取得 AI 預測數據
+        async function fetchPrediction() {
+            try {
+                const response = await fetch('/api/prediction');
+                const res = await response.json();
+                if (res.status === 'success') {
+                    updatePredictionUI(res.data, res.cached);
+                } else {
+                    showError('預測 API 載入失敗: ' + res.message);
+                }
+            } catch (err) {
+                console.error(err);
+                showError('預測 API 連線發生錯誤');
+            }
+        }
+
+        // 3. 觸發強制重新預測流程
+        async function triggerLivePrediction() {
+            showLoader();
+            try {
+                const response = await fetch('/api/predict/run', { method: 'POST' });
+                const res = await response.json();
+                if (res.status === 'success') {
+                    updatePredictionUI(res.data, false);
+                } else {
+                    alert('預測重新運行失敗: ' + res.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('伺服器連線中斷，請稍後再試！');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        // ==============================================================================
+        // UI 更新渲染方法
+        // ==============================================================================
+
+        let trendChartInstance = null;
+
+        function renderTrendChart(data) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            if (trendChartInstance) {
+                trendChartInstance.destroy();
+            }
+
+            const history = data.historical_prices;
+            const pred = data.tomorrow_prediction;
+
+            const labels = history.map(item => item.date.substring(5));
+            labels.push(pred.date.substring(5) + " (預測)");
+
+            const lastHistoryPrice = history[history.length - 1].price;
+
+            const historyData = history.map(item => item.price);
+            historyData.push(null);
+
+            const predData = Array(history.length - 1).fill(null);
+            predData.push(lastHistoryPrice);
+            predData.push(pred.price);
+
+            const upperData = Array(history.length - 1).fill(null);
+            upperData.push(lastHistoryPrice);
+            upperData.push(pred.upper_limit);
+
+            const lowerData = Array(history.length - 1).fill(null);
+            lowerData.push(lastHistoryPrice);
+            lowerData.push(pred.lower_limit);
+
+            trendChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '歷史已實現價格',
+                            data: historyData,
+                            borderColor: '#3b82f6',
+                            borderWidth: 2.5,
+                            pointBackgroundColor: '#3b82f6',
+                            pointBorderColor: 'rgba(255,255,255,0.4)',
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            tension: 0.25,
+                            fill: false
+                        },
+                        {
+                            label: 'AI 預估期望價格',
+                            data: predData,
+                            borderColor: '#f59e0b',
+                            borderWidth: 3.5,
+                            pointBackgroundColor: '#f59e0b',
+                            pointBorderColor: 'rgba(255,255,255,0.6)',
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            tension: 0,
+                            fill: false
+                        },
+                        {
+                            label: '預估上限',
+                            data: upperData,
+                            borderColor: 'rgba(245, 158, 11, 0.45)',
+                            borderWidth: 1,
+                            borderDash: [3, 3],
+                            pointRadius: 0,
+                            tension: 0,
+                            fill: false
+                        },
+                        {
+                            label: '預估下限',
+                            data: lowerData,
+                            borderColor: 'rgba(245, 158, 11, 0.45)',
+                            borderWidth: 1,
+                            borderDash: [3, 3],
+                            pointRadius: 0,
+                            tension: 0,
+                            fill: '-1',
+                            backgroundColor: 'rgba(245, 158, 11, 0.12)'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(22, 31, 48, 0.95)',
+                            borderColor: 'rgba(255,255,255,0.08)',
+                            borderWidth: 1,
+                            titleColor: '#fff',
+                            bodyColor: '#e2e8f0',
+                            titleFont: { family: 'Outfit, Noto Sans TC' },
+                            bodyFont: { family: 'Outfit, Noto Sans TC' },
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += 'NT$ ' + context.parsed.y.toLocaleString('zh-TW', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: {
+                                    family: 'Outfit, Noto Sans TC',
+                                    size: 10
+                                }
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: {
+                                    family: 'Outfit, Noto Sans TC',
+                                    size: 10
+                                },
+                                callback: function(value) {
+                                    return 'NT$ ' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新 AI 預測 UI 面板
+        function updatePredictionUI(data, isCached) {
+            // 更新日期與收盤價
+            document.getElementById('data-date').textContent = data.data_date;
+            document.getElementById('predict-date').textContent = data.prediction_date;
+            document.getElementById('close-price').textContent = data.latest_close.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            
+            // 處理快取狀態
+            const cacheDot = document.getElementById('cache-dot');
+            const cacheText = document.getElementById('cache-text');
+            if (isCached) {
+                cacheDot.className = "w-2.5 h-2.5 rounded-full bg-blue-500";
+                cacheText.textContent = "快取載入 (今日已預測)";
+            } else {
+                cacheDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 ping-green";
+                cacheText.textContent = "即時預測模式 (已取得最新行情)";
+            }
+
+            // 預測方向與風格設定
+            const iconEl = document.getElementById('pred-icon');
+            const textEl = document.getElementById('pred-text');
+            const subtextEl = document.getElementById('pred-subtext');
+            
+            const direction = data.prediction; // '漲', '觀望', '跌'
+            
+            if (direction === '漲') {
+                iconEl.textContent = '📈';
+                textEl.textContent = '看漲';
+                textEl.className = "text-5xl font-black tracking-wider text-emerald-400 neon-text-green";
+                subtextEl.textContent = '模型偵測到強烈上漲動能';
+            } else if (direction === '跌') {
+                iconEl.textContent = '📉';
+                textEl.textContent = '看跌';
+                textEl.className = "text-5xl font-black tracking-wider text-red-500 neon-text-red";
+                subtextEl.textContent = '模型偵測到下行風險信號';
+            } else {
+                iconEl.textContent = '⚖️';
+                textEl.textContent = '觀望';
+                textEl.className = "text-5xl font-black tracking-wider text-blue-400 neon-text-blue";
+                subtextEl.textContent = '市場訊號不明，建議空手等待';
+            }
+
+            // 更新信心度圓形進度條
+            const confidence = Math.round(data.confidence * 100);
+            document.getElementById('confidence-val').textContent = `${confidence}%`;
+            
+            const circle = document.getElementById('confidence-circle');
+            circle.setAttribute('stroke-dasharray', `${confidence}, 100`);
+            
+            // 決定信心等級
+            const badge = document.getElementById('confidence-badge');
+            const desc = document.getElementById('confidence-desc');
+            
+            if (data.high_confidence) {
+                badge.className = "inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                badge.textContent = "HIGH CONFIDENCE";
+                desc.textContent = "AI 對此預測具備高度信心，特徵共振效應強烈。";
+                circle.className = "text-emerald-500 transition-all duration-1000 ease-out";
+            } else {
+                badge.className = "inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20";
+                badge.textContent = "NORMAL CONFIDENCE";
+                desc.textContent = "預測置信度適中，操作宜配合整體市場走勢。";
+                circle.className = "text-blue-500 transition-all duration-1000 ease-out";
+            }
+
+            // 機率矩陣長條圖
+            const pUp = Math.round(data.probabilities['漲'] * 1000) / 10;
+            const pNeutral = Math.round(data.probabilities['觀望'] * 1000) / 10;
+            const pDown = Math.round(data.probabilities['跌'] * 1000) / 10;
+            
+            document.getElementById('prob-up').textContent = `${pUp}%`;
+            document.getElementById('prob-neutral').textContent = `${pNeutral}%`;
+            document.getElementById('prob-down').textContent = `${pDown}%`;
+            
+            document.getElementById('bar-up').style.width = `${pUp}%`;
+            document.getElementById('bar-neutral').style.width = `${pNeutral}%`;
+            document.getElementById('bar-down').style.width = `${pDown}%`;
+            
+            // 渲染與更新明日走勢預測圖
+            if (data.historical_prices && data.tomorrow_prediction) {
+                renderTrendChart(data);
+            }
+        }
+
+        // ==============================================================================
+        // 加載控制動畫方法
+        // ==============================================================================
+        let logInterval = null;
+
+        function showLoader() {
+            const overlay = document.getElementById('loader-overlay');
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+            }, 10);
+
+            // 滾動日誌模擬
+            const logs = [
+                "ℹ️ [SYSTEM] 連線至網路核心端點...",
+                "📡 [NETWORK] 成功建立 SSL 連線到 Yahoo Finance API (v8)",
+                "📥 [DATA] 正在獲取 2330.TW 歷史日 K 線價格數據...",
+                "📥 [DATA] 正在獲取 SOX (費城半導體指數) 市場共振數據...",
+                "📥 [DATA] 正在獲取 ^TWII (台灣加權股價指數) 行情數據...",
+                "📥 [DATA] 正在獲取 USD/TWD 及 VIX 波動率恐慌特徵...",
+                "⚡ [ENGINE] 開始載入 Lymetix 特徵萃取組件...",
+                "📊 [FEATURES] 正在並行計算 153 項高維度技術指標 (RSI, MACD, Bollinger)...",
+                "📈 [MATH] 進行時間序列 MinMax 特徵標準化轉形處理...",
+                "🤖 [MODEL] 成功載入預訓練 LSTM 遞歸卷積隱藏層架構...",
+                "🤖 [MODEL] 成功載入預訓練 GRU 時間長短期特徵閘門...",
+                "🧠 [INFERENCE] 正進行預測機率矩陣乘積運算 (Forward Propagation)...",
+                "🎯 [DECISION] 模型推理完成，生成明日決策矩陣！",
+                "💾 [CACHE] 將預測報告寫入 local json 快取庫..."
+            ];
+            
+            const logContainer = document.getElementById('log-text-container');
+            logContainer.innerHTML = '';
+            let step = 0;
+            
+            logInterval = setInterval(() => {
+                if (step < logs.length) {
+                    const row = document.createElement('div');
+                    row.textContent = logs[step];
+                    logContainer.appendChild(row);
+                    
+                    // 自動滾動到底部
+                    logContainer.parentElement.scrollTop = logContainer.parentElement.scrollHeight;
+                    step++;
+                } else {
+                    clearInterval(logInterval);
+                }
+            }, 800);
+        }
+
+        function hideLoader() {
+            const overlay = document.getElementById('loader-overlay');
+            overlay.classList.add('opacity-0');
+            if (logInterval) {
+                clearInterval(logInterval);
+            }
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+            }, 300);
+        }
+
+        function showError(msg) {
+            console.error(msg);
+            const textEl = document.getElementById('pred-text');
+            textEl.textContent = '加載錯誤';
+            textEl.className = "text-3xl font-black text-red-500 font-sans";
+            document.getElementById('pred-subtext').textContent = msg;
+        }
+    </script>
+</body>
+</html>
