@@ -31,6 +31,9 @@ def _apply_keras_patch():
                             def _patched_init(self, *args, **kwargs):
                                 kwargs.pop('quantization_config', None)
                                 kwargs.pop('use_gate', None)
+                                kwargs.pop('renorm', None)
+                                kwargs.pop('renorm_clipping', None)
+                                kwargs.pop('renorm_momentum', None)
                                 return original_func(self, *args, **kwargs)
                             return _patched_init
                         obj.__init__ = _make_patch(orig_init)
