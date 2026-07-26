@@ -2,6 +2,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+import keras
 from keras.models import load_model
 import joblib
 from datetime import datetime, timedelta
@@ -17,8 +18,29 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 warnings.filterwarnings('ignore')
 
+# 修正 Keras 3.x 模型的相容性問題 (解決 Unrecognized keyword arguments passed to Dense: {'quantization_config': None})
+def _apply_keras_patch():
+    for mod in [keras.layers, tf.keras.layers]:
+        if hasattr(mod, 'Layer'):
+            for name in dir(mod):
+                try:
+                    obj = getattr(mod, name)
+                    if isinstance(obj, type) and issubclass(obj, mod.Layer):
+                        orig_init = obj.__init__
+                        def _make_patch(original_func):
+                            def _patched_init(self, *args, **kwargs):
+                                kwargs.pop('quantization_config', None)
+                                return original_func(self, *args, **kwargs)
+                            return _patched_init
+                        obj.__init__ = _make_patch(orig_init)
+                except Exception:
+                    pass
+
+_apply_keras_patch()
+
 @tf.keras.utils.register_keras_serializable(package="Custom", name="PositionEmbedding")
 class PositionEmbedding(tf.keras.layers.Layer):
+
     def __init__(self, max_steps, max_dims, **kwargs):
         super(PositionEmbedding, self).__init__(**kwargs)
         self.max_steps = max_steps
@@ -84,7 +106,12 @@ class stockStockPredictor:
                 'apply_attention_weight': apply_attention_weight,
                 'PositionEmbedding': PositionEmbedding
             }
-            self.model = load_model(self.model_path, custom_objects=custom_objects)
+            try:
+                self.model = load_model(self.model_path, custom_objects=custom_objects, safe_mode=False)
+            except TypeError:
+                self.model = load_model(self.model_path, custom_objects=custom_objects)
+            except Exception:
+                self.model = tf.keras.models.load_model(self.model_path, custom_objects=custom_objects)
             print(f"模型載入成功！特徵數: {len(self.feature_names) if self.feature_names else '未知'}")
             return True
         except Exception as e:
