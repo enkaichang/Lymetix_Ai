@@ -18,7 +18,7 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 warnings.filterwarnings('ignore')
 
-# 修正 Keras 3.x 模型的相容性問題 (解決 Unrecognized keyword arguments passed to Dense: {'quantization_config': None})
+# 修正 Keras 3.x 模型的相容性問題 (解決 Unrecognized keyword arguments)
 def _apply_keras_patch():
     for mod in [keras.layers, tf.keras.layers]:
         if hasattr(mod, 'Layer'):
@@ -30,6 +30,7 @@ def _apply_keras_patch():
                         def _make_patch(original_func):
                             def _patched_init(self, *args, **kwargs):
                                 kwargs.pop('quantization_config', None)
+                                kwargs.pop('use_gate', None)
                                 return original_func(self, *args, **kwargs)
                             return _patched_init
                         obj.__init__ = _make_patch(orig_init)
