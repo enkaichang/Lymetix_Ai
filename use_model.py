@@ -193,6 +193,14 @@ class stockStockPredictor:
             p_upper = latest_close * (1.0 + r_expected + 0.015)
             p_lower = latest_close * (1.0 + r_expected - 0.015)
             
+            # 計算下一個交易日 (若遇到週六加2天，週日加1天)
+            last_trading_day = stock_data.index[-1]
+            next_target_date = last_trading_day + timedelta(days=1)
+            if next_target_date.weekday() == 5:
+                next_target_date += timedelta(days=2)
+            elif next_target_date.weekday() == 6:
+                next_target_date += timedelta(days=1)
+
             result = {
                 'prediction': pred_name,
                 'prediction_class': int(predicted_class),
@@ -207,7 +215,7 @@ class stockStockPredictor:
                     'price': float(p_pred),
                     'upper_limit': float(p_upper),
                     'lower_limit': float(p_lower),
-                    'date': end_time.strftime('%Y-%m-%d')
+                    'date': next_target_date.strftime('%Y-%m-%d')
                 }
             }
             return result
