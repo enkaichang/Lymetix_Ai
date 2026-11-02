@@ -1,0 +1,82 @@
+{
+    "prediction": "觀望",
+    "prediction_class": 1,
+    "confidence": 0.7002358436584473,
+    "probabilities": {
+        "跌": 0.006658903788775206,
+        "觀望": 0.7002358436584473,
+        "漲": 0.29310527443885803
+    },
+    "latest_close": NaN,
+    "prediction_date": "2026-11-02",
+    "data_date": "2026-11-02",
+    "high_confidence": true,
+    "historical_prices": [
+        {
+            "date": "2026-10-12",
+            "price": 2540.0
+        },
+        {
+            "date": "2026-10-13",
+            "price": 2490.0
+        },
+        {
+            "date": "2026-10-14",
+            "price": 2490.0
+        },
+        {
+            "date": "2026-10-15",
+            "price": 2440.0
+        },
+        {
+            "date": "2026-10-16",
+            "price": 2420.0
+        },
+        {
+            "date": "2026-10-19",
+            "price": 2420.0
+        },
+        {
+            "date": "2026-10-20",
+            "price": 2405.0
+        },
+        {
+            "date": "2026-10-21",
+            "price": 2420.0
+        },
+        {
+            "date": "2026-10-22",
+            "price": 2385.0
+        },
+        {
+            "date": "2026-10-23",
+            "price": 2385.0
+        },
+        {
+            "date": "2026-10-27",
+            "price": 2400.0
+        },
+        {
+            "date": "2026-10-28",
+            "price": 2425.0
+        },
+        {
+            "date": "2026-10-29",
+            "price": 2415.0
+        },
+        {
+            "date": "2026-10-30",
+            "price": 2370.0
+        },
+        {
+            "date": "2026-11-02",
+            "price": NaN
+        }
+    ],
+    "tomorrow_prediction": {
+        "price": NaN,
+        "upper_limit": NaN,
+        "lower_limit": NaN,
+        "date": "2026-11-03"
+    }
+}
